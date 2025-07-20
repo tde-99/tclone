@@ -30,5 +30,6 @@ Dᴇᴠᴇʟᴏᴘᴇʀ:
 /start - To check if I'm alive or not
 /logs - To check my logs [Admin Only]
 /setskip - To skip a number of messages [Admin Only]
+/set_target - To set the target channel [Admin Only]
 
 This bot might be available to all in the future.</b>"""

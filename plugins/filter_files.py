@@ -38,6 +38,10 @@ async def forward_cmd(bot, message):
         logger.exception(e)
         return await message.reply(f'Errors - {e}')
     try:
+        await bot.join_chat(source_chat_id)
+    except Exception as e:
+        return await message.reply(f"Could not join the channel {source_chat.title}.\n\n<b>Error:</b> {e}")
+    try:
         k = await bot.get_messages(source_chat_id, last_msg_id)
     except:
         return await message.reply('Make Sure That Iam An Admin In The Channel, if channel is private')

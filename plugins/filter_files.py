@@ -38,13 +38,14 @@ async def forward_cmd(bot, message):
         logger.exception(e)
         return await message.reply(f'Errors - {e}')
     try:
-        k = await bot.get_messages(source_chat_id, last_msg_id)
+        messages = [message async for message in bot.iter_history(source_chat_id, limit=1, offset_id=last_msg_id)]
+        if not messages:
+            logger.error(f"No messages found in {source_chat_id} with message ID {last_msg_id}")
+            return await message.reply('This may be group and iam not a admin of the group.')
+        k = messages[0]
     except Exception as e:
         logger.error(f"Error getting messages from {source_chat_id} with message ID {last_msg_id}: {e}")
         return await message.reply('Make Sure That Iam An Admin In The Channel, if channel is private')
-    if k.empty:
-        logger.error(f"No messages found in {source_chat_id} with message ID {last_msg_id}")
-        return await message.reply('This may be group and iam not a admin of the group.')
     if lock.locked():
         return await message.reply_text('<b>Wait until previous process complete.</b>')
     user = await db.get_user(int(message.from_user.id))

@@ -40,10 +40,10 @@ async def forward_cmd(bot, message):
     try:
         k = await bot.get_messages(source_chat_id, last_msg_id)
     except Exception as e:
-        logger.error(f"Error getting messages from {source_chat_id}: {e}")
+        logger.error(f"Error getting messages from {source_chat_id} with message ID {last_msg_id}: {e}")
         return await message.reply('Make Sure That Iam An Admin In The Channel, if channel is private')
     if k.empty:
-        logger.error(f"No messages found in {source_chat_id}")
+        logger.error(f"No messages found in {source_chat_id} with message ID {last_msg_id}")
         return await message.reply('This may be group and iam not a admin of the group.')
     if lock.locked():
         return await message.reply_text('<b>Wait until previous process complete.</b>')

@@ -1,68 +1,60 @@
-from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from pyrogram import Client
+from telethon import events
+from telethon.tl.custom import Button
 from script import scripts
 from utils import temp_utils
 import logging
 from database.data_base import db
 from .functions import start_forward
+from bot import app
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
 
-@Client.on_callback_query()
-async def query_handler(bot: Client, query: CallbackQuery):
-    if query.data == "close":
-        await query.message.delete()
-    elif query.data == "about":
-        btn = [[
-            InlineKeyboardButton("Go Back", callback_data="home"),
-            InlineKeyboardButton("Close", callback_data="close")
-        ]]
-        await query.message.edit_text(
+@app.on(events.CallbackQuery)
+async def query_handler(event):
+    data = event.data.decode()
+    if data == "close":
+        await event.message.delete()
+    elif data == "about":
+        btn = [
+            [Button.inline("Go Back", data="home"), Button.inline("Close", data="close")]
+        ]
+        await event.edit(
             text=scripts.ABOUT_TXT.format(temp_utils.BOT_NAME),
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup(btn)
+            buttons=btn
         )
-    elif query.data == "home":
-        btn = [[
-            InlineKeyboardButton("About", callback_data="about"),
-            InlineKeyboardButton("Souce Code", callback_data="source")
-        ],[
-            InlineKeyboardButton("Close", callback_data="close"),
-            InlineKeyboardButton("Help", callback_data="help")
-        ]]
-        await query.message.edit_text(
-            text=scripts.START_TXT.format(query.from_user.mention, temp_utils.USER_NAME, temp_utils.BOT_NAME),
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup(btn)
+    elif data == "home":
+        btn = [
+            [Button.inline("About", data="about"), Button.inline("Souce Code", data="source")],
+            [Button.inline("Close", data="close"), Button.inline("Help", data="help")]
+        ]
+        await event.edit(
+            text=scripts.START_TXT.format(event.sender.first_name, temp_utils.USER_NAME, temp_utils.BOT_NAME),
+            buttons=btn
         )
-    elif query.data == "source":
-        btn = [[
-            InlineKeyboardButton("Go Back", callback_data="home"),
-            InlineKeyboardButton("Close", callback_data="close")
-        ]]
-        await query.message.edit_text(
+    elif data == "source":
+        btn = [
+            [Button.inline("Go Back", data="home"), Button.inline("Close", data="close")]
+        ]
+        await event.edit(
             text=scripts.SOURCE_TXT,
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup(btn)
+            buttons=btn
         )
-    elif query.data == "cancel_forward":
-        temp_utils.CANCEL[int(query.from_user.id)] = True
-        await query.answer("Cancelling Process !\n\nIf the bot is sleeping, It will cancell only after the sleeping is over !", show_alert=True)
-    elif query.data == "help":
-        btn = [[
-            InlineKeyboardButton("Go Back", callback_data="home"),
-            InlineKeyboardButton("Close", callback_data="close")
-        ]]
-        await query.message.edit_text(
+    elif data == "cancel_forward":
+        temp_utils.CANCEL[event.sender_id] = True
+        await event.answer("Cancelling Process !\n\nIf the bot is sleeping, It will cancell only after the sleeping is over !", alert=True)
+    elif data == "help":
+        btn = [
+            [Button.inline("Go Back", data="home"), Button.inline("Close", data="close")]
+        ]
+        await event.edit(
             text=scripts.HELP_TXT.format(temp_utils.BOT_NAME),
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup(btn)
+            buttons=btn
         )
-    elif query.data.startswith("forward"):
-        ident, userid = query.data.split("#")
-        if int(query.from_user.id) != int(userid):
-            return await query.answer("You can't touch this !")
+    elif data.startswith("forward"):
+        ident, userid = data.split("#")
+        if event.sender_id != int(userid):
+            return await event.answer("You can't touch this !", alert=True)
         user = await db.get_user(int(userid))
-        await query.message.delete()
-        await start_forward(bot, userid, user['skip'])
+        await event.message.delete()
+        await start_forward(app, userid, user['skip'])

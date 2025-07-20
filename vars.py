@@ -1,8 +1,5 @@
 from os import environ
 import re
-from dotenv import load_dotenv
-
-load_dotenv()
 
 id_pattern = re.compile(r'^.\d+$')
 def is_enabled(value, default):
@@ -14,9 +11,14 @@ def is_enabled(value, default):
         return default
 
 SESSION = environ.get("SESSION", "forward bot")
-API_ID = int(environ["API_ID"])
-API_HASH = environ["API_HASH"]
-BOT_TOKEN = environ["BOT_TOKEN"]
+required_vars = ["API_ID", "API_HASH", "BOT_TOKEN"]
+for var in required_vars:
+    if var not in environ:
+        raise ValueError(f"Please set the {var} environment variable.")
+
+API_ID = int(environ.get("API_ID"))
+API_HASH = environ.get("API_HASH")
+BOT_TOKEN = environ.get("BOT_TOKEN")
 LOG_CHANNEL = int(environ.get("LOG_CHANNEL", 0))
 PORT = int(environ.get("PORT", "8080"))
 ADMINS = [int(admin) if id_pattern.search(admin) else admin for admin in environ.get('ADMINS', '').split()]

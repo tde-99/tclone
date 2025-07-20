@@ -1,8 +1,8 @@
 from utils import temp_utils
 from database.data_base import db
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from pyrogram.errors import FloodWait
-from pyrogram import enums
+from telethon.tl.custom import Button
+from telethon.errors.rpcerrorlist import FloodWaitError
+from telethon.tl.types import MessageMediaDocument, MessageMediaPhoto, MessageMediaVideo
 import logging
 import asyncio
 logger = logging.getLogger(__name__)
@@ -23,13 +23,13 @@ async def start_forward(bot, userid, skip):
             TARGET_DB = user['target_chat']
         else:
             return
-    btn = [[
-        InlineKeyboardButton("CANCEL", callback_data="cancel_forward")
-    ]]
+    btn = [
+        [Button.inline("CANCEL", data="cancel_forward")]
+    ]
     active_msg = await bot.send_message(
-        chat_id=int(userid),
-        text="<b>Starting Forward Process...</b>",
-        reply_markup = InlineKeyboardMarkup(btn)
+        entity=int(userid),
+        message="<b>Starting Forward Process...</b>",
+        buttons=btn
     )
     skipped = int(skip)
     total = 0
@@ -41,19 +41,19 @@ async def start_forward(bot, userid, skip):
     status = 'Idle'
     async with lock:
         try:
-            btn = [[
-                InlineKeyboardButton("CANCEL", callback_data="cancel_forward")
-            ]]
+            btn = [
+                [Button.inline("CANCEL", data="cancel_forward")]
+            ]
             status = 'Forwarding...'
             await active_msg.edit(
                 text=f"<b>Forwarding on progress...\n\nTotal: {total}\nSkipped: {skipped}\nForwarded: {forwarded}\nEmpty Message: {empty}\nNot Media: {notmedia}\nUnsupported Media: {unsupported}\nMessages Left: {left}\n\nStatus: {status}</b>",
-                reply_markup=InlineKeyboardMarkup(btn)
+                buttons=btn
             )
             current = int(skip)
             temp_utils.CANCEL[int(userid)] = False
             await db.update_any(userid, 'on_process', True)
             await db.update_any(userid, 'is_complete', False)
-            async for msg in bot.iter_messages(source_chat_id, int(last_msg_id), int(skip)):
+            async for msg in bot.iter_messages(source_chat_id, limit=int(last_msg_id), offset_id=int(skip)):
                 if temp_utils.CANCEL.get(int(userid)):
                     status = 'Cancelled !'
                     await active_msg.edit(f"<b>Successfully Cancelled!\n\nTotal: {total}\nSkipped: {skipped}\nForwarded: {forwarded}\nEmpty Message: {empty}\nNot Media: {notmedia}\nUnsupported Media: {unsupported}\nMessages Left: {left}\n\nStatus: {status}</b>")
@@ -62,47 +62,47 @@ async def start_forward(bot, userid, skip):
                 left = int(last_msg_id)-int(total)
                 current += 1
                 if current % 20 == 0:
-                    btn = [[
-                        InlineKeyboardButton("CANCEL", callback_data="cancel_forward")
-                    ]]
+                    btn = [
+                        [Button.inline("CANCEL", data="cancel_forward")]
+                    ]
                     await db.update_any(userid, 'fetched', total)
                     status = 'Sleeping for 30 seconds.'
                     await active_msg.edit(
                         text=f"<b>Forwarding on progress...\n\nTotal: {total}\nSkipped: {skipped}\nForwarded: {forwarded}\nEmpty Message: {empty}\nNot Media: {notmedia}\nUnsupported Media: {unsupported}\nMessages Left: {left}\n\nStatus: {status}</b>",
-                        reply_markup=InlineKeyboardMarkup(btn)
+                        buttons=btn
                     )
                     await asyncio.sleep(30)
                     status = 'Forwarding...'
                     await active_msg.edit( 
                         text=f"<b>Forwarding on progress...\n\nTotal: {total}\nSkipped: {skipped}\nForwarded: {forwarded}\nEmpty Message: {empty}\nNot Media: {notmedia}\nUnsupported Media: {unsupported}\nMessages Left: {left}\n\nStatus: {status}</b>", 
-                        reply_markup=InlineKeyboardMarkup(btn) 
+                        buttons=btn
                     )
-                if msg.empty:
+                if msg.text is None and msg.media is None:
                     empty+=1
                     continue
                 elif not msg.media:
                     notmedia += 1
                     continue
-                elif msg.media not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
+                elif not isinstance(msg.media, (MessageMediaDocument, MessageMediaPhoto, MessageMediaVideo)):
                     unsupported += 1
                     continue
                 try:
-                    await msg.copy(
-                        chat_id=int(TARGET_DB)
+                    await msg.copy_to(
+                        int(TARGET_DB)
                     )
                     forwarded+=1
                     await asyncio.sleep(1)
-                except FloodWait as e:
-                    btn = [[
-                        InlineKeyboardButton("CANCEL", callback_data="cancel_forward")
-                    ]]
+                except FloodWaitError as e:
+                    btn = [
+                        [Button.inline("CANCEL", data="cancel_forward")]
+                    ]
                     await active_msg.edit(
-                        text=f"<b>Got FloodWait.\n\nWaiting for {e.value} seconds.</b>",
-                        reply_markup=InlineKeyboardMarkup(btn)
+                        text=f"<b>Got FloodWait.\n\nWaiting for {e.seconds} seconds.</b>",
+                        buttons=btn
                     )
-                    await asyncio.sleep(e.value)
-                    await msg.copy(
-                        chat_id=int(TARGET_DB)
+                    await asyncio.sleep(e.seconds)
+                    await msg.copy_to(
+                        int(TARGET_DB)
                     )
                     forwarded+=1
                     continue
